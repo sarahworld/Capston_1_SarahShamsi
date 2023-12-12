@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+
+
+{% block result%}
+
+
+    <div class="container">
+        <h2 class="m-3">Product:{{product_name}}</h2>
+        <h3 class="m-3">What is the country of origin? Is it vegetarian? What is the confidance percentage? </h3>
+        <h2 class="m-3">{{description.content}}</h2>
+        <form action="/">
+            <button class="btn btn-primary m-3">Back To Search</button>
+        </form>
+        
+    </div>
+  
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{%block page_title%}
+{{page_title}}
+{% endblock %}
+
+{% block content%}
+
+<div class="container">
+    <h1 class="display-h1 m-5">ENTER THE PRODUCT BARCODE</h1>
+    <form class="m-5" action='/search' method="POST">
+        {{ form.hidden_tag() }}
+
+        {% for field in form if field.widget.input_type != 'hidden' %}
+
+        <p>
+            {{field.label}}
+            {{field}}
+
+            {% for error in field.errors %}
+            {{errors}}
+            {% endfor %}
+        </p>
+
+        {% endfor%}
+        <button type="submit" class="btn btn-primary m-3">FIND PRODUCT</button>
+    </form>
+    
+</div>
+
+{% endblock %}
+
