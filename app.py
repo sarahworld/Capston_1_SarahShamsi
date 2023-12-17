@@ -1,16 +1,14 @@
 from flask import Flask, render_template, redirect, request, jsonify
-import requests
+
 import os
+from openAICapstone import OpenAICapstone
+from barcodeCapstone import BarcodeCapstone
 
 from flask_debugtoolbar import DebugToolbarExtension
-from models import db, connect_db
+from models import db, connect_db, Product, Questions
 from forms import ProductForm
-from openai import OpenAI
-from dotenv import load_dotenv
 
 app = Flask(__name__)
-client = OpenAI()
-load_dotenv()
 
 app.config['SECRET_KEY'] = 'Its a secret!';
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///product_descriptor'
@@ -24,7 +22,6 @@ debug = DebugToolbarExtension(app)
 connect_db(app)
 db.create_all()
 
-barcode_api_key = os.environ.get("BARCODE_API_KEY")
 
 @app.route('/')
 def index():
@@ -37,28 +34,40 @@ def search():
 
     if form.validate_on_submit():
         upc_code = form.upc_code.data;
-        response = requests.get(f'https://api.barcodelookup.com/v3/products?barcode={upc_code}&formatted=y&key={barcode_api_key}')
-        result = response.json().get("products")
-        for item in result:
-            product_name = item['title']
-            product_image = item['images']
-   
-        # product_name='Oreo Thins Original Sandwich Cookies, 1 Resealable Pack (287G)'
+        # Check in the product if this upc code exists
+        product = Product.query.filter_by(upc_code=upc_code).first();
+        print("Line 39",product)
 
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-      
-        completion = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "user", "content": f"What is the country of origin of {product_name}?Give one word answer.Is it vegetarian or not? Give your confidence percentage? Give two words answer."}]
-        )
-        # print(completion.choices[0].message)
-        description= completion.choices[0].message
-        print(description)
+        if not product:
+            barcode = BarcodeCapstone()
+            barcode_dict = barcode.call(upc_code=upc_code)
 
-        return render_template('result.html',page_title="result", result=result, description=description)
+            # Create product in DB
+            product = Product.create_product(upc_code=upc_code,name=barcode_dict['name'],image_url=barcode_dict['image'],description=None);
+        
+        
+        product_upc = product.upc_code;
+        print(product_upc)
 
-   
+        product_name = product.name;
+        print("Line 50")
+
+        questions = Questions()
+        content = questions.get(upc_code)
+        print("LINE 55",content);
+       
+        if not content:
+            # if content not available call open ai
+            ai = OpenAICapstone()
+            content = ai.call(product_name=product_name)
+            print("CCCCCCCCCCCCC",content)
+
+            # Create questions in DB
+            questions = Questions.create_questions(product_id=product.id,origin_country=content['origin_country'],is_vegetarian=content['is_vegetarian'],confidence_percentage=content['confidence_percentage'])
+
+        return render_template('result.html',page_title="result", product=product, content=content)
+        # return {'content':content}   
+
     return render_template('home.html', page_title='Home', form=form)
     
     
