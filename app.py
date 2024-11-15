@@ -10,7 +10,7 @@ from forms import ProductForm
 
 app = Flask(__name__)
 
-app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY','its a secret!')
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///product_descriptor'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False;
@@ -37,31 +37,33 @@ def search():
         upc_code = form.upc_code.data;
         # Check in the product if this upc code exists
         product = Product.query.filter_by(upc_code=upc_code).first();
-        print("Line 39",product)
+        
 
         if not product:
             barcode = BarcodeCapstone()
             barcode_dict = barcode.call(upc_code=upc_code)
-
+            if(not barcode_dict.get('name')):
+                return page_not_found(e="Unable to find Products")
+            
             # Create product in DB
             product = Product.create_product(upc_code=upc_code,name=barcode_dict['name'],image_url=barcode_dict['image'],description=None);
         
         
         product_upc = product.upc_code;
-        print(product_upc)
+        
 
         product_name = product.name;
-        print("Line 50")
+        
 
         questions = Questions()
         content = questions.get(upc_code)
-        print("LINE 55",content);
+        
        
         if not content:
             # if content not available call open ai
             ai = OpenAICapstone()
             content = ai.call(product_name=product_name)
-            print("CCCCCCCCCCCCC",content)
+            
 
             # Create questions in DB
             questions = Questions.create_questions(product_id=product.id,origin_country=content['origin_country'],is_vegetarian=content['is_vegetarian'],confidence_percentage=content['confidence_percentage'])
@@ -72,6 +74,8 @@ def search():
     return render_template('home.html', page_title='Home', form=form)
     
     
-   
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('page_not_found.html',page_title='Page Not Found') 
 
 
